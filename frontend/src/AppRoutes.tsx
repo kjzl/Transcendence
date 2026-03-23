@@ -163,7 +163,7 @@ export default function AppRoutes() {
 		<Layout className={isLanding ? 'h-screen overflow-hidden' : ''}>
 			<RealtimeStatusOverlays />
 			<ErrorBanner error={currentError} onDismiss={handleDismissError} />
-			<main id="main-content" className="flex-grow flex flex-col">
+			<div id="main-content" tabIndex={-1} className="flex-grow flex flex-col">
 				<Routes>
 					<Route
 						path="/landing"
@@ -224,7 +224,7 @@ export default function AppRoutes() {
 
 					<Route path="*" element={<Navigate to="/landing" replace />} />
 				</Routes>
-			</main>
+			</div>
 			{!hideFooter && (
 				<footer
 					role="contentinfo"
