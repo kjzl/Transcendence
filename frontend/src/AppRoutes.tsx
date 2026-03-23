@@ -163,63 +163,68 @@ export default function AppRoutes() {
 		<Layout className={isLanding ? 'h-screen overflow-hidden' : ''}>
 			<RealtimeStatusOverlays />
 			<ErrorBanner error={currentError} onDismiss={handleDismissError} />
-			<Routes>
-				<Route
-					path="/landing"
-					element={
-						<PublicRoute>
-							<LandingPage onLogin={() => navigate('/auth')} />
-						</PublicRoute>
-					}
-				/>
-				<Route
-					path="/auth"
-					element={
-						<PublicRoute>
-							<AuthPage
-								onBack={() => navigate('/landing')}
-								onAuthSuccess={handleAuthSuccess}
-							/>
-						</PublicRoute>
-					}
-				/>
-				<Route
-					path="/home"
-					element={
-						<ProtectedRoute>
-							<Home
-								onGame={() => navigate('/game')}
-								onLogout={handleLogout}
-								onSessions={() => navigate('/sessions')}
-							/>
-						</ProtectedRoute>
-					}
-				/>
-				<Route
-					path="/sessions"
-					element={
-						<ProtectedRoute>
-							<SessionManagement
-								onBack={() => navigate('/home')}
-								onLogout={handleLogout}
-							/>
-						</ProtectedRoute>
-					}
-				/>
-				<Route
-					path="/game"
-					element={
-						<ProtectedRoute>
-							<GameBoard onLeave={() => navigate('/home')} />
-						</ProtectedRoute>
-					}
-				/>
+			<main id="main-content" className="flex-grow flex flex-col">
+				<Routes>
+					<Route
+						path="/landing"
+						element={
+							<PublicRoute>
+								<LandingPage onLogin={() => navigate('/auth')} />
+							</PublicRoute>
+						}
+					/>
+					<Route
+						path="/auth"
+						element={
+							<PublicRoute>
+								<AuthPage
+									onBack={() => navigate('/landing')}
+									onAuthSuccess={handleAuthSuccess}
+								/>
+							</PublicRoute>
+						}
+					/>
+					<Route
+						path="/home"
+						element={
+							<ProtectedRoute>
+								<Home
+									onGame={() => navigate('/game')}
+									onLogout={handleLogout}
+									onSessions={() => navigate('/sessions')}
+								/>
+							</ProtectedRoute>
+						}
+					/>
+					<Route
+						path="/sessions"
+						element={
+							<ProtectedRoute>
+								<SessionManagement
+									onBack={() => navigate('/home')}
+									onLogout={handleLogout}
+								/>
+							</ProtectedRoute>
+						}
+					/>
+					<Route
+						path="/game"
+						element={
+							<ProtectedRoute>
+								<GameBoard onLeave={() => navigate('/home')} />
+							</ProtectedRoute>
+						}
+					/>
 
-				<Route path="/privacy" element={<PrivacyPolicy onBack={() => navigate(-1)} />} />
-				<Route path="/terms" element={<TermsOfService onBack={() => navigate(-1)} />} />
+					<Route
+						path="/privacy"
+						element={<PrivacyPolicy onBack={() => navigate(-1)} />}
+					/>
+					<Route path="/terms" element={<TermsOfService onBack={() => navigate(-1)} />} />
 
-				<Route path="*" element={<Navigate to="/landing" replace />} />
-			</Routes>
+					<Route path="*" element={<Navigate to="/landing" replace />} />
+				</Routes>
+			</main>
 			{!hideFooter && (
 				<footer
 					role="contentinfo"
