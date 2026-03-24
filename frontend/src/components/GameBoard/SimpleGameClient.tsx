@@ -400,9 +400,11 @@ interface Props {
 	) => void;
 	localPlayerId: number;
 	characterConfig?: CharacterConfig;
+	/** When true, skips local player model and adds pan/zoom camera controls. */
+	isSpectator?: boolean;
 }
 
-export default function SimpleGameClient({ snapshotRef, characterClassesRef, onSendInput, localPlayerId, characterConfig }: Props) {
+export default function SimpleGameClient({ snapshotRef, characterClassesRef, onSendInput, localPlayerId, characterConfig, isSpectator = false }: Props) {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const gameClientRef = useRef<GameClient | null>(null);
 	const engineRef = useRef<Engine | null>(null);
@@ -447,6 +449,66 @@ export default function SimpleGameClient({ snapshotRef, characterClassesRef, onS
 		camera.orthoBottom = -ISO_ORTHO_SIZE;
 		camera.minZ = 0.1;
 		camera.maxZ = 500;
+
+		// ── Spectator camera: wider view + pan/zoom ──────────────────
+		// All event-driven (zero per-frame cost). Collected for cleanup.
+		const spectatorCleanup: (() => void)[] = [];
+		if (isSpectator) {
+			// Zoom out to show the full arena
+			const SPECTATOR_ORTHO = 55;
+			camera.orthoLeft = -SPECTATOR_ORTHO * aspect;
+			camera.orthoRight = SPECTATOR_ORTHO * aspect;
+			camera.orthoTop = SPECTATOR_ORTHO;
+			camera.orthoBottom = -SPECTATOR_ORTHO;
+
+			let ortho = SPECTATOR_ORTHO;
+			const MIN_ORTHO = 15;
+			const MAX_ORTHO = 80;
+
+			const applyOrtho = () => {
+				const a = engine.getRenderWidth() / engine.getRenderHeight();
+				camera.orthoLeft = -ortho * a;
+				camera.orthoRight = ortho * a;
+				camera.orthoTop = ortho;
+				camera.orthoBottom = -ortho;
+			};
+
+			// Scroll wheel → zoom
+			const onWheel = (e: WheelEvent) => {
+				e.preventDefault();
+				ortho = Math.max(MIN_ORTHO, Math.min(MAX_ORTHO, ortho + Math.sign(e.deltaY) * 3));
+				applyOrtho();
+			};
+			canvas.addEventListener('wheel', onWheel, { passive: false });
+			spectatorCleanup.push(() => canvas.removeEventListener('wheel', onWheel));
+
+			// Pointer drag → pan (isometric axes)
+			let panning = false;
+			let px = 0;
+			let py = 0;
+			const onDown = (e: PointerEvent) => { panning = true; px = e.clientX; py = e.clientY; canvas.setPointerCapture(e.pointerId); };
+			const onMove = (e: PointerEvent) => {
+				if (!panning) return;
+				const dx = e.clientX - px;
+				const dy = e.clientY - py;
+				px = e.clientX;
+				py = e.clientY;
+				const s = (ortho / SPECTATOR_ORTHO) * 0.15;
+				const R = 0.7071;
+				camera.position.x += (-dx * R + dy * R) * s;
+				camera.position.z += (-dx * R - dy * R) * s;
+				camera.setTarget(camera.position.subtract(ISO_CAM_OFFSET));
+			};
+			const onUp = (e: PointerEvent) => { panning = false; canvas.releasePointerCapture(e.pointerId); };
+			canvas.addEventListener('pointerdown', onDown);
+			canvas.addEventListener('pointermove', onMove);
+			canvas.addEventListener('pointerup', onUp);
+			spectatorCleanup.push(() => {
+				canvas.removeEventListener('pointerdown', onDown);
+				canvas.removeEventListener('pointermove', onMove);
+				canvas.removeEventListener('pointerup', onUp);
+			});
+		}
 
 		// Load arena scene from Babylon.js Editor
 		// The scene file references binary mesh data in the "example" folder
@@ -508,10 +570,10 @@ export default function SimpleGameClient({ snapshotRef, characterClassesRef, onS
 			}
 		});
 
-		// Game client
+		// Game client — spectators skip local player model (all chars render as remote)
 		const gameClient = new GameClient(scene, localPlayerId, camera, characterConfig, characterClassesRef);
 		gameClientRef.current = gameClient;
-		gameClient.initLocalPlayer();
+		if (!isSpectator) gameClient.initLocalPlayer();
 
 		// Input
 		const input: InputState = {
@@ -631,6 +693,7 @@ export default function SimpleGameClient({ snapshotRef, characterClassesRef, onS
 
 		return () => {
 			window.removeEventListener('focus', onFocus);
+			for (const fn of spectatorCleanup) fn();
 			engine.stopRenderLoop();
 			scene.dispose();
 			engine.dispose();
