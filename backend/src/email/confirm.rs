@@ -73,7 +73,7 @@ pub async fn send_confirmation_email(
     let encoded = token.encoded();
     let expires_at = Utc::now() + Duration::hours(24);
 
-    let (email_addr, nickname) = db
+    let user = db
         .write(move |conn| {
             use crate::schema::users::dsl::*;
 
@@ -85,7 +85,6 @@ pub async fn send_confirmation_email(
                 }
 
                 let user_email = user.email.clone();
-                let user_nick = user.nickname.to_string();
 
                 diesel::update(users.find(user_id))
                     .set((
@@ -95,7 +94,7 @@ pub async fn send_confirmation_email(
                     ))
                     .execute(conn)?;
 
-                Ok(Ok((user_email, user_nick)))
+                Ok(Ok(user))
             })
         })
         .await?
@@ -104,9 +103,8 @@ pub async fn send_confirmation_email(
 
     mailer
         .send(
-            &email_addr,
+            &user,
             TransactionalEmail::EmailConfirmation {
-                nickname,
                 confirmation_token: encoded,
             },
         )
