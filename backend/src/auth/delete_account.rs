@@ -128,12 +128,9 @@ pub async fn delete_my_account(
                             u::password_hash.eq(super::util::RANDOM_PASSWORD_HASH.clone()),
                             u::totp_enabled.eq(false),
                             u::totp_secret_enc.eq(None::<String>),
-                            u::totp_confirmed_at
-                                .eq(None::<chrono::DateTime<chrono::Utc>>),
-                            u::tos_accepted_at
-                                .eq(None::<chrono::DateTime<chrono::Utc>>),
-                            u::email_confirmed_at
-                                .eq(None::<chrono::DateTime<chrono::Utc>>),
+                            u::totp_confirmed_at.eq(None::<chrono::DateTime<chrono::Utc>>),
+                            u::tos_accepted_at.eq(None::<chrono::DateTime<chrono::Utc>>),
+                            u::email_confirmed_at.eq(None::<chrono::DateTime<chrono::Utc>>),
                             u::email_confirmation_token_hash.eq(None::<Vec<u8>>),
                             u::email_confirmation_token_expires_at
                                 .eq(None::<chrono::DateTime<chrono::Utc>>),
@@ -144,17 +141,14 @@ pub async fn delete_my_account(
                     // Delete sessions
                     {
                         use crate::schema::sessions::dsl as s;
-                        diesel::delete(s::sessions.filter(s::user_id.eq(user_id)))
-                            .execute(conn)?;
+                        diesel::delete(s::sessions.filter(s::user_id.eq(user_id))).execute(conn)?;
                     }
 
                     // Delete 2FA recovery codes
                     {
                         use crate::schema::two_fa_recovery_codes::dsl as tfa;
-                        diesel::delete(
-                            tfa::two_fa_recovery_codes.filter(tfa::user_id.eq(user_id)),
-                        )
-                        .execute(conn)?;
+                        diesel::delete(tfa::two_fa_recovery_codes.filter(tfa::user_id.eq(user_id)))
+                            .execute(conn)?;
                     }
 
                     // Delete avatars
@@ -174,11 +168,7 @@ pub async fn delete_my_account(
                         use crate::schema::friend_requests::dsl as fr;
                         diesel::delete(
                             fr::friend_requests
-                                .filter(
-                                    fr::sender_id
-                                        .eq(user_id)
-                                        .or(fr::receiver_id.eq(user_id)),
-                                ),
+                                .filter(fr::sender_id.eq(user_id).or(fr::receiver_id.eq(user_id))),
                         )
                         .execute(conn)?;
                     }
@@ -194,8 +184,7 @@ pub async fn delete_my_account(
                     {
                         use crate::schema::account_deletion_requests::dsl as adr2;
                         diesel::delete(
-                            adr2::account_deletion_requests
-                                .filter(adr2::user_id.eq(user_id)),
+                            adr2::account_deletion_requests.filter(adr2::user_id.eq(user_id)),
                         )
                         .execute(conn)?;
                     }
@@ -203,10 +192,8 @@ pub async fn delete_my_account(
                     // Delete data_export_requests
                     {
                         use crate::schema::data_export_requests::dsl as der;
-                        diesel::delete(
-                            der::data_export_requests.filter(der::user_id.eq(user_id)),
-                        )
-                        .execute(conn)?;
+                        diesel::delete(der::data_export_requests.filter(der::user_id.eq(user_id)))
+                            .execute(conn)?;
                     }
 
                     Ok(())
@@ -239,7 +226,9 @@ pub async fn delete_my_account(
             email_confirmation_token_expires_at: None,
             email_confirmation_token_email: None,
         };
-        let _ = mailer.send(&deleted_user, TransactionalEmail::AccountDeleted).await;
+        let _ = mailer
+            .send(&deleted_user, TransactionalEmail::AccountDeleted)
+            .await;
 
         res.status_code(StatusCode::NO_CONTENT);
         Ok(())
@@ -289,10 +278,8 @@ pub async fn delete_my_account(
                         return Ok::<_, ApiError>((req.token, req.confirm_token, req.expires_at));
                     }
                     // Expired — delete it
-                    diesel::delete(
-                        adr::account_deletion_requests.filter(adr::user_id.eq(user_id)),
-                    )
-                    .execute(conn)?;
+                    diesel::delete(adr::account_deletion_requests.filter(adr::user_id.eq(user_id)))
+                        .execute(conn)?;
                 }
 
                 // Generate new tokens
@@ -347,8 +334,7 @@ pub async fn delete_my_account(
                     .write(move |conn| {
                         use crate::schema::account_deletion_requests::dsl as adr;
                         diesel::update(
-                            adr::account_deletion_requests
-                                .filter(adr::user_id.eq(user_id)),
+                            adr::account_deletion_requests.filter(adr::user_id.eq(user_id)),
                         )
                         .set(adr::confirm_token.eq(None::<Vec<u8>>))
                         .execute(conn)
@@ -422,11 +408,10 @@ pub async fn confirm_account_deletion(
             // Clear confirm_token. Safe to filter only by user_id here because
             // user_id is the PK (at most one row) and we hold the exclusive
             // writer connection, so no concurrent mutation can race.
-            let updated = diesel::update(
-                adr::account_deletion_requests.filter(adr::user_id.eq(user_id)),
-            )
-            .set(adr::confirm_token.eq(None::<Vec<u8>>))
-            .execute(conn);
+            let updated =
+                diesel::update(adr::account_deletion_requests.filter(adr::user_id.eq(user_id)))
+                    .set(adr::confirm_token.eq(None::<Vec<u8>>))
+                    .execute(conn);
 
             updated.is_ok()
         })
